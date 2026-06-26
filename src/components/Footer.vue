@@ -43,10 +43,11 @@
 
 <style scoped>
 .site-footer {
-  background: var(--olive-dark);
+  background: var(--primary-dark);
   color: var(--cream);
   padding: 40px 0 20px;
   margin-top: 60px;
+  font-family: var(--font-header-footer);
 }
 .footer-inner {
   display: grid;

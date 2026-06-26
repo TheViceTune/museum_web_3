@@ -1,10 +1,12 @@
 <template>
   <div class="container page">
-    <h1 class="page-title">Tham quan</h1>
-    <p class="page-subtitle">Giờ mở cửa · Vé vào cổng · Địa chỉ &amp; lưu ý</p>
+    <h1 class="page-title" v-slide-in:left>Tham quan</h1>
+    <p class="page-subtitle" v-slide-in:left="{ delay: 100 }">
+      Giờ mở cửa · Vé vào cổng · Địa chỉ &amp; lưu ý
+    </p>
 
     <div class="visit-grid">
-      <div class="visit-card">
+      <div class="visit-card" v-slide-in:bottom="{ delay: 0 }">
         <h3>🕐 Giờ mở cửa</h3>
         <ul>
           <li>
@@ -19,7 +21,7 @@
         </ul>
       </div>
 
-      <div class="visit-card">
+      <div class="visit-card" v-slide-in:bottom="{ delay: 100 }">
         <h3>🎫 Vé vào cổng</h3>
         <ul>
           <li>
@@ -38,7 +40,7 @@
         </ul>
       </div>
 
-      <div class="visit-card">
+      <div class="visit-card" v-slide-in:bottom="{ delay: 200 }">
         <h3>📍 Địa chỉ &amp; Liên hệ</h3>
         <ul>
           <li>
@@ -53,7 +55,7 @@
         </ul>
       </div>
 
-      <div class="visit-card">
+      <div class="visit-card" v-slide-in:bottom="{ delay: 300 }">
         <h3>📋 Lưu ý</h3>
         <ul>
           <li>✓ Giữ trật tự, không nói tục, gây ồn</li>
@@ -69,7 +71,7 @@
       </div>
     </div>
 
-    <div class="contact-card">
+    <div class="contact-card" v-slide-in:bottom="{ delay: 400 }">
       <h3>📬 Thông tin liên hệ</h3>
       <div class="contact-grid">
         <div>
@@ -83,6 +85,7 @@
 </template>
 
 <style scoped>
+/* ===== STYLES UNCHANGED ===== */
 .visit-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -96,11 +99,13 @@
   box-shadow: var(--shadow);
 }
 .visit-card h3 {
-  color: var(--olive-dark);
+  color: var(--primary-dark);
   margin-bottom: 8px;
   font-size: 18px;
   border-bottom: 2px solid var(--gold);
   padding-bottom: 8px;
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
 }
 .visit-card ul {
   list-style: none;
@@ -115,7 +120,7 @@
   border-bottom: none;
 }
 .visit-card .highlight {
-  color: var(--olive-dark);
+  color: var(--primary-dark);
   font-weight: 600;
 }
 .contact-card {
@@ -126,12 +131,27 @@
   margin-top: 20px;
 }
 .contact-card h3 {
-  color: var(--olive-dark);
+  color: var(--primary-dark);
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
 }
 .contact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+  .visit-grid {
+    grid-template-columns: 1fr;
+  }
+  .visit-card {
+    padding: 16px;
+  }
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -20,13 +20,14 @@
 
 <style scoped>
 .site-header {
-  background: var(--olive-dark);
+  background: var(--primary-dark);
   color: var(--white);
   padding: 12px 0;
   position: sticky;
   top: 0;
   z-index: 1000;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  font-family: var(--font-header-footer);
 }
 .header-inner {
   display: flex;
@@ -50,7 +51,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: 20px;
-  color: var(--olive-dark);
+  color: var(--primary-dark);
   flex-shrink: 0;
 }
 .logo-text {
@@ -80,7 +81,7 @@
 .main-nav a:hover,
 .main-nav a.router-link-active {
   background: var(--gold);
-  color: var(--olive-dark);
+  color: var(--primary-dark);
   border-color: var(--gold);
 }
 @media (max-width: 768px) {

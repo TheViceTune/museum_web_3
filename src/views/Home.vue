@@ -1,37 +1,41 @@
 <template>
-  <div class="container page">
-    <Slider />
-    <VideoPlaceholder />
-    <Disclaimer />
-    <div class="quick-links">
-      <div class="quick-card">
-        <div class="icon">📖</div>
-        <h4>Khám phá</h4>
-        <p>Dòng chảy hiện vật &amp; ký ức lịch sử</p>
-        <router-link to="/kham-pha" class="btn-outline">Xem ngay</router-link>
-      </div>
-      <div class="quick-card">
-        <div class="icon">🎮</div>
-        <h4>Trải nghiệm</h4>
-        <p>Góc nhìn GenZ &amp; Truy tìm mảnh ghép</p>
-        <router-link to="/trai-nghiem" class="btn-outline"
-          >Tham gia</router-link
-        >
-      </div>
-      <div class="quick-card">
-        <div class="icon">📍</div>
-        <h4>Tham quan</h4>
-        <p>Giờ mở cửa &amp; vé vào cổng</p>
-        <router-link to="/tham-quan" class="btn-outline"
-          >Xem chi tiết</router-link
-        >
+  <div class="home-page">
+    <HomeHero v-slide-in:left />
+
+    <div class="container">
+      <VideoPlaceholder v-slide-in:bottom />
+      <Disclaimer v-slide-in:bottom="{ delay: 150 }" />
+
+      <div class="quick-links">
+        <div class="quick-card" v-slide-in:bottom="{ delay: 0 }">
+          <div class="icon">📖</div>
+          <h4>Khám phá</h4>
+          <p>Dòng chảy hiện vật &amp; ký ức lịch sử</p>
+          <router-link to="/kham-pha" class="btn-outline">Xem ngay</router-link>
+        </div>
+        <div class="quick-card" v-slide-in:bottom="{ delay: 100 }">
+          <div class="icon">🎮</div>
+          <h4>Trải nghiệm</h4>
+          <p>Góc nhìn GenZ &amp; Truy tìm mảnh ghép</p>
+          <router-link to="/trai-nghiem" class="btn-outline"
+            >Tham gia</router-link
+          >
+        </div>
+        <div class="quick-card" v-slide-in:bottom="{ delay: 200 }">
+          <div class="icon">📍</div>
+          <h4>Tham quan</h4>
+          <p>Giờ mở cửa &amp; vé vào cổng</p>
+          <router-link to="/tham-quan" class="btn-outline"
+            >Xem chi tiết</router-link
+          >
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import Slider from "@/components/Slider.vue";
+import HomeHero from "@/components/HomeHero.vue";
 import VideoPlaceholder from "@/components/VideoPlaceholder.vue";
 import Disclaimer from "@/components/Disclaimer.vue";
 </script>
@@ -56,7 +60,9 @@ import Disclaimer from "@/components/Disclaimer.vue";
   margin-bottom: 6px;
 }
 .quick-card h4 {
-  color: var(--olive-dark);
+  color: var(--primary-dark);
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
 }
 .quick-card p {
   font-size: 13px;

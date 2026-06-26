@@ -1,9 +1,14 @@
 <template>
   <div class="container page">
-    <h1 class="page-title">Trải nghiệm</h1>
-    <p class="page-subtitle">Góc nhìn GenZ · Truy tìm mảnh ghép</p>
+    <h1 class="page-title" v-slide-in:left>Trải nghiệm</h1>
+    <p class="page-subtitle" v-slide-in:left="{ delay: 100 }">
+      Góc nhìn GenZ · Truy tìm mảnh ghép
+    </p>
 
-    <h3 style="color: var(--olive-dark); margin: 20px 0 12px">
+    <h3
+      style="color: var(--primary-dark); margin: 20px 0 12px"
+      v-slide-in:bottom
+    >
       ▸ Các bạn trẻ nghĩ gì về Bảo tàng?
     </h3>
     <div class="genz-grid">
@@ -14,10 +19,11 @@
         :age="item.age"
         :school="item.school"
         :quote="item.quote"
+        v-slide-in:bottom="{ delay: idx * 80 }"
       />
     </div>
 
-    <PuzzleGame />
+    <PuzzleGame v-slide-in:bottom="{ delay: 150 }" />
   </div>
 </template>
 

@@ -1,74 +1,309 @@
 <template>
   <div class="container page">
-    <h1 class="page-title">Khám phá</h1>
-    <p class="page-subtitle">
+    <h1 class="page-title" v-slide-in:left>Khám phá</h1>
+    <p class="page-subtitle" v-slide-in:left="{ delay: 100 }">
       Dòng chảy hiện vật · Ký ức lịch sử · Dấu son thời gian
     </p>
 
-    <!-- New Timeline with sliding indicator -->
-    <Timeline v-model="currentPeriod" />
+    <!-- Audio floating -->
+    <div class="audio-float">
+      <audio ref="audioRef" controls loop>
+        <source :src="noiseAudio" type="audio/mpeg" />
+      </audio>
+    </div>
 
-    <!-- Carousel with arrows (unchanged) -->
-    <div class="carousel-wrapper">
+    <Timeline v-model="currentPeriod" v-slide-in:bottom="{ delay: 100 }" />
+
+    <div class="carousel-wrapper" v-slide-in:bottom="{ delay: 200 }">
       <button
         class="arrow-btn left"
-        @click="prev"
-        :disabled="currentIndex === 0"
+        @click="prevExhibit"
+        :disabled="exhibitIndex === 0"
       >
         ‹
       </button>
       <div class="carousel-content">
         <transition name="slide" mode="out-in">
-          <div :key="currentPeriod" class="carousel-item">
+          <div :key="currentExhibit.id" class="carousel-item">
             <div class="explore-layout">
-              <ArtifactDisplay :period="currentPeriod" />
-              <InfoPanel :period="currentPeriod" />
+              <ArtifactDisplay :exhibit="currentExhibit" />
+              <InfoPanel :exhibit="currentExhibit" />
             </div>
           </div>
         </transition>
       </div>
       <button
         class="arrow-btn right"
-        @click="next"
-        :disabled="currentIndex === periods.length - 1"
+        @click="nextExhibit"
+        :disabled="exhibitIndex === exhibitsInPeriod.length - 1"
       >
         ›
       </button>
     </div>
 
-    <!-- Story cards and hero profiles (unchanged) -->
-    <!-- ... -->
+    <div class="exhibit-counter" v-slide-in:bottom="{ delay: 300 }">
+      {{ exhibitIndex + 1 }} / {{ exhibitsInPeriod.length }}
+    </div>
+
+    <!-- Story cards -->
+    <div class="story-cards" v-slide-in:bottom="{ delay: 150 }">
+      <h3>▸ Những câu chuyện tiêu biểu</h3>
+      <div class="story-grid">
+        <div
+          class="story-card"
+          v-for="(card, idx) in storyCards"
+          :key="idx"
+          v-slide-in:left="{ delay: idx * 80 }"
+        >
+          <h4>{{ card.title }}</h4>
+          <p>{{ card.excerpt }}</p>
+          <a href="#" class="story-link" @click.prevent="openStory(card)"
+            >Khám phá →</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-profiles" v-slide-in:bottom="{ delay: 200 }">
+      <h3>▸ Những anh hùng – Những huyền thoại</h3>
+      <div class="profile-grid">
+        <div
+          class="profile"
+          v-for="(hero, idx) in heroes"
+          :key="idx"
+          v-slide-in:bottom="{ delay: idx * 100 }"
+        >
+          <div>{{ hero.icon }}</div>
+          <div>{{ hero.name }}</div>
+          <div>{{ hero.desc }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Story Modal -->
+    <StoryModal
+      v-model:visible="modalVisible"
+      :title="modalTitle"
+      :content="modalContent"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import Timeline from "@/components/Timeline.vue";
 import ArtifactDisplay from "@/components/ArtifactDisplay.vue";
 import InfoPanel from "@/components/InfoPanel.vue";
+import StoryModal from "@/components/StoryModal.vue";
+import { exhibitsData, periods } from "@/data/exhibits";
+import noiseAudio from "/noise.mp3";
 
-const periods = ["1946-1965", "1965-1975", "1975-nay"];
-const currentIndex = ref(0);
+const router = useRouter();
+const audioRef = ref(null);
+let audioElement = null;
 
-const currentPeriod = computed({
-  get: () => periods[currentIndex.value],
-  set: (val) => {
-    const idx = periods.indexOf(val);
-    if (idx !== -1) currentIndex.value = idx;
-  },
+// Audio logic
+onMounted(() => {
+  audioElement = audioRef.value;
+  if (audioElement) {
+    audioElement.play().catch(() => {});
+  }
+  const stopAudio = () => {
+    if (audioElement && !audioElement.paused) audioElement.pause();
+  };
+  const unregister = router.afterEach((to) => {
+    if (to.path !== "/kham-pha") stopAudio();
+  });
+  onBeforeUnmount(() => {
+    stopAudio();
+    unregister();
+  });
 });
 
-function next() {
-  if (currentIndex.value < periods.length - 1) currentIndex.value++;
+// Exhibit logic
+const currentPeriod = ref(periods[0]);
+const exhibitIndex = ref(0);
+const exhibitsInPeriod = computed(
+  () => exhibitsData[currentPeriod.value] || [],
+);
+const currentExhibit = computed(() => {
+  const list = exhibitsInPeriod.value;
+  return list[exhibitIndex.value] || list[0];
+});
+watch(currentPeriod, () => {
+  exhibitIndex.value = 0;
+});
+
+function nextExhibit() {
+  if (exhibitIndex.value < exhibitsInPeriod.value.length - 1)
+    exhibitIndex.value++;
+}
+function prevExhibit() {
+  if (exhibitIndex.value > 0) exhibitIndex.value--;
 }
 
-function prev() {
-  if (currentIndex.value > 0) currentIndex.value--;
+// Story modal
+const modalVisible = ref(false);
+const modalTitle = ref("");
+const modalContent = ref("");
+
+function openStory(card) {
+  modalTitle.value = card.title;
+  modalContent.value = card.fullStory;
+  modalVisible.value = true;
 }
+
+// All 7 stories with full content
+const storyCards = [
+  {
+    title: "Lời thề quyết tử bảo vệ bầu trời thủ đô",
+    excerpt:
+      'Bầu trời đêm Hà Nội cuối năm 1972 đặc quánh bóng tối và khét lẹt mùi bom đạn. Ở cao độ hàng nghìn mét, khi hai quả tên lửa phóng đi không đủ sức quật ngã "siêu pháo đài bay" B-52, một quyết định chớp nhoáng đã được đưa ra...',
+    fullStory: `
+      <p>Bầu trời đêm Hà Nội cuối năm 1972 đặc quánh bóng tối và khét lẹt mùi bom đạn. Ở cao độ hàng nghìn mét, khi hai quả tên lửa phóng đi không đủ sức quật ngã "siêu pháo đài bay" B-52, một quyết định chớp nhoáng đã được đưa ra.</p>
+      <p>Ít ai ngờ, người phi công quả cảm ấy từng là một sinh viên Bách Khoa hào hoa của khu phố Đặng Dung (Hà Nội). Để được khoác lên mình bộ đồ bay, anh đã tự rèn luyện tiền đình bằng cách... trèo lên sân thượng quay vòng tròn mỗi chiều. Mang theo sự lãng mạn của tuổi trẻ, Thiều từng nửa đùa nửa thật xin đi đánh ban ngày, tính bắn rơi máy bay địch để lấy cái "đuôi" về tặng bạn gái. Nhưng khi nhận nhiệm vụ đánh đêm để diệt B-52, người thanh niên ấy đã đanh thép thốt lên lời thề định mệnh với người chỉ huy:</p>
+      <p>"Em mà gặp được B-52 thì nó đừng hòng thoát. Nếu bắn mà nó không rơi tại chỗ, thì em 'taran' (lao thẳng vào)!"</p>
+      <p>Đó không phải phút bốc đồng. Giữa những ngày Hà Nội oằn mình trong bom đạn tháng 12/1972, anh gạt bỏ mọi hạnh phúc cá nhân, viết vội lá thư cuối cùng gửi song thân: "Con nghĩ bây giờ không phải là lúc lo lắng cho ngôi nhà của mình, cũng không có quyền nghĩ đến bản thân…"</p>
+      <p>Cơ hội thực hiện lời thề đến vào đêm 28/12/1972. Xuất kích từ sân bay dã chiến Cẩm Thủy, chiếc MiG-21 đơn độc lách qua hàng rào tiêm kích F-4 dày đặc, âm thầm bám theo "siêu pháo đài bay" ở độ cao 11.000 mét.</p>
+      <p>Giữa sự tĩnh lặng gai người, giọng Vũ Xuân Thiều dõng dạc vang lên qua bộ đàm: "Tôi đã phát hiện mục tiêu. Xin phép công kích!". Hai quả tên lửa xé gió lao đi. B-52 trúng đạn nhưng chưa rơi tại chỗ. Không một giây chần chừ, đúng như lời thề năm nào, anh ép cần lái tăng tốc. Người lính bay quả cảm biến chính mình và chiếc MiG-21 thành "quả tên lửa thứ ba", lao thẳng vào kẻ thù.</p>
+      <p>Đêm hôm đó ở Sở chỉ huy, không có tiếng hô "Cháy rồi!" quen thuộc báo tin chiến thắng. Trên màn hình radar, người ta chỉ thấy vệt sáng của chiếc MiG-21 và chiếc B-52 chập lại làm một, bùng lên một chớp sáng rực rỡ kỳ lạ rồi vỡ vụn.</p>
+      <p>Vũ Xuân Thiều đã hóa thân vào bầu trời tĩnh lặng ở tuổi 27, giữ trọn vẹn lời thề máu thịt với Thủ đô.</p>
+      <p>Năm 1994, Vũ Xuân Thiều được Nhà nước truy tặng danh hiệu Anh hùng Lực lượng vũ trang nhân dân. Nhưng có lẽ, đài tưởng niệm rực rỡ nhất của anh không nằm trên những tấm huân chương, mà nằm trong ký ức của những người ở lại.</p>
+      <p>Cho đến tận bây giờ, cứ vào ngày giỗ anh, tại ngôi nhà số 21 phố Đặng Dung, những người lính bay năm xưa tóc đã điểm bạc vẫn lặng lẽ tề tựu. Họ thắp lên nén nhang, chìm vào tĩnh lặng để cùng nhau nhớ về đúng thời khắc mà bầu trời Sơn La năm ấy bùng lên một quầng sáng chói lòa. Chàng trai Hà Nội ấy đã gửi lại tuổi 27 của mình ở khoảng không đen đặc, để bầu trời Thủ đô hôm nay mãi mãi trong xanh.</p>
+      <p><small>Nguồn: Báo Quân đội Nhân dân, Báo Nhân dân, Báo Công an Nhân dân</small></p>
+    `,
+  },
+  {
+    title: 'Huyền thoại "Ông Bảy lúa" - anh chàng nông dân chinh phục bầu trời',
+    excerpt:
+      "Trên cánh đồng Tháp Mười những năm cuối đời, có một ông lão gầy gò, nước da sạm nắng, ngày ngày xắn quần lội bùn, đào ao thả cá...",
+    fullStory: `
+      <p>Trên cánh đồng Tháp Mười những năm cuối đời, có một ông lão gầy gò, nước da sạm nắng, ngày ngày xắn quần lội bùn, đào ao thả cá. Bà con lối xóm vẫn gọi thân tình là "Ông Bảy lúa". Nhìn dáng vẻ dung dị ấy, ít ai nghĩ đó chính là người đã từng khiến cả Không quân Hoa Kỳ phải kiêng dè, một trong những "Át chủ bài" huyền thoại của bầu trời Việt Nam.</p>
+      <p>Năm 17 tuổi, cậu thanh niên Nguyễn Văn Bảy quyết định trốn nhà đi bộ đội với một lí do khôi hài: bị gia đình ép lấy vợ. Khi ấy, chữ nghĩa bẻ đôi chưa hết lớp 3, xe đạp còn chưa từng cất công tập đi. Cả thế giới của cậu lúc ấy là con trâu và thửa ruộng. Chính ngã rẽ dở khóc dở cười ấy lại trở thành điểm khởi đầu của một trong những huyền thoại vĩ đại nhất lịch sử Không quân Việt Nam.</p>
+      <p>Năm 1960, khi trúng tuyển phi công, rào cản lớn nhất của Nguyễn Văn Bảy không phải là thể lực hay kỹ thuật bay, mà là con chữ. Với vỏn vẹn trình độ văn hóa tương đương lớp 3, ông được đưa lên trường Văn hóa Lạng Sơn của Quân đội để học văn hóa cấp tốc. Ra nước ngoài huấn luyện, cũng bằng sự cần cù ấy, ông chật vật vượt qua mọi rào cản để chuyển thẳng từ máy bay cánh quạt Yak-18 lên phản lực MiG-15, rồi MiG-17.</p>
+      <p>Bầu trời miền Bắc những năm ấy là một cuộc đối đầu không cân sức. Phía bên kia là những chiếc F-4, F-105 hiện đại bậc nhất, đầy mình radar và tên lửa. Còn chiếc MiG-17 trong tay ông được sản xuất từ thập niên 50, vũ khí chỉ có pháo 23mm và 37mm. Nhưng trong cái khó, tư duy của một người nông dân đã bộc lộ sức mạnh tiềm ẩn của nó. Ông mang nguyên vẹn kinh nghiệm của một người nông dân vào không chiến: "Lái máy bay như lái trâu cày - cứ nhắm thẳng vào địch mà đánh". Không có tên lửa tầm nhiệt hay radar hiện đại, ông áp dụng triệt để lối đánh du kích: nấp trong mây, chờ đối phương lọt vào tầm mắt và áp sát đến mức cực gần (chỉ 100-150m) mới khai hỏa.</p>
+      <p>Trong trận đánh ngày 7/10/1965, chiếc MiG-17 của ông bị tên lửa nổ sát sạt, găm tới 84 vết đạn. Buồng lái thủng, áp suất tụt mạnh đến mức ông định dùng cùi tay bịt lỗ thủng nhưng bị lực hút kéo giật lại. Mặc cho chỉ huy mặt đất ra lệnh nhảy dù, ông kiên quyết giữ chặt cần lái, ép cỗ máy tơi tả hạ cánh an toàn.</p>
+      <p>Giống như một người nông dân nhất quyết không bỏ đàn trâu giữa bão, ông không cho phép mình bỏ lại máy bay. Không chỉ gan góc, ông còn nhạy bén sáng tạo ra kỹ thuật lật nghiêng và cơ động ngang máy bay để né tên lửa tầm nhiệt, một bài học kinh điển được đúc rút từ thực chiến. Trong suốt cuộc đời binh nghiệp với 94 lần xuất kích, Nguyễn Văn Bảy chưa từng một lần phải bỏ lại máy bay.</p>
+      <p>Nhìn lại, có những con số trong đời ông như một sự sắp đặt kỳ lạ của số phận: Mang cái tên "Bảy", là người con thứ 7 trong gia đình, bay trên chiếc MiG-17, bắn hạ đúng 7 máy bay Mỹ, được nhận 7 Huy hiệu Bác Hồ và trở thành Anh hùng Lực lượng vũ trang nhân dân năm 1967. Lo sợ mất đi một tài năng quý giá, Bác Hồ đã trực tiếp ra lệnh cho ông ngừng bay chiến đấu để lùi về làm công tác chỉ huy, truyền lửa cho thế hệ sau.</p>
+      <p>Và rồi, khi chiến tranh khép lại, vòng tròn cuộc đời ông cũng trở về nơi nó bắt đầu. Viên Đại tá phi công cởi bỏ bộ quân phục, quay về quê nhà Đồng Tháp. Người thanh niên năm xưa trốn khỏi ruộng đồng để bay lên bầu trời, nay lại thong thả trở về với đất mẹ, xắn quần lội bùn, vác cuốc ra đồng, đào ao thả cá, trở thành "Ông Bảy lúa" rặt miền Tây. Ông đã đi một vòng tròn lớn, nhưng cốt cách của một người nông dân Nam Bộ vẫn vẹn nguyên, không hề phai nhạt.</p>
+      <p>Ông Bảy ra đi năm 2019. Từ cậu bé chăn trâu lớp 3 đến phi công huyền thoại, cuộc đời ông là một minh chứng bất diệt cho một lẽ sống đẹp: khí phách anh hùng không nằm ở những thứ hào nhoáng, mà được tôi luyện và tỏa sáng từ chính những điều bình dị nhất của con người Việt Nam.</p>
+      <p><small>Nguồn: Báo VnExpress, Báo Công an Nhân dân, Báo Dân Việt, Báo Nhân dân</small></p>
+    `,
+  },
+  {
+    title: 'Huyền thoại "Chim cắt số 2" Nguyễn Văn Cốc',
+    excerpt:
+      "Ít ai biết, người phi công duy nhất trong lịch sử Không quân Việt Nam bắn hạ tới 9 máy bay Mỹ lại sở hữu một đôi bàn tay đặc biệt...",
+    fullStory: `
+      <p>Ít ai biết, người phi công duy nhất trong lịch sử Không quân Việt Nam bắn hạ tới 9 máy bay Mỹ lại sở hữu một đôi bàn tay đặc biệt. Đôi tay ấy to khác thường, đến mức mỗi lần làm nhiệm vụ, ông buộc phải tìm cho bằng được đôi găng tay da vừa vặn thì mới có cảm giác tự tin khi nắm chặt cần lái.</p>
+      <p>Chi tiết nhỏ ấy, như một lời mách bảo: con người này sinh ra để cầm lái những điều lớn lao. Ông là Trung tướng, Anh hùng Lực lượng vũ trang nhân dân Nguyễn Văn Cốc, người được mệnh danh là "Chim cắt số 2" - một tượng đài không chỉ của lòng dũng cảm, mà còn của tư duy chiến thuật sáng tạo bậc thầy.</p>
+      <p>Tuổi thơ của Nguyễn Văn Cốc là những năm tháng nhuốm đầy nước mắt và mất mát. Năm 1947, khi ông mới lên 4 tuổi, cha là Chủ tịch Mặt trận Việt Minh huyện Việt Yên, cùng chú ruột bị thực dân Pháp bắt, xâu dây thép gai vào tay rồi dìm xuống giếng làng cùng 18 người khác. Những đêm chạy giặc sơ tán trên đôi quang gánh của mẹ, cậu bé Cốc thường lặng ngước nhìn bầu trời đếm sao, như thể đang kiếm tìm bóng hình một người cha không bao giờ trở lại.</p>
+      <p>Thế nhưng, chính trong nghịch cảnh, giấc mơ được bay lại được nhen nhóm. Từ vùng quê ấy, cậu bé say mê dõi theo những cánh dù và những phi công tập luyện trên bầu trời sân bay Chũ. Năm 1961, khi đang là học sinh lớp 8 trường Ngô Sĩ Liên, Nguyễn Văn Cốc xuất sắc trúng tuyển phi công và được cử sang Liên Xô đào tạo, chính thức bước vào con đường chinh phục bầu trời.</p>
+      <p>Bước vào cuộc chiến, Nguyễn Văn Cốc nổi tiếng với sự điềm tĩnh đến lạ thường. Ông từng bộc bạch: "Chưa một lần nào tôi mất bình tĩnh khi đối mặt với không quân địch, kể cả lần đầu tiên." Cái đầu "thép" ấy, kết hợp cùng tính cách cẩn thận đến từng chi tiết, đã trở thành bệ phóng cho một trong những cuộc cách tân chiến thuật xuất sắc nhất của Không quân Nhân dân Việt Nam.</p>
+      <p>Điều làm nên danh xưng "Chim cắt số 2" đầy khiếp đảm với kẻ thù chính là tư duy dám phá vỡ mọi khuôn khổ giáo điều. Theo nguyên tắc tác chiến chuẩn mực của MiG-21 thời bấy giờ, trong một biên đội hai chiếc, phi công số 1 đảm nhận vai trò công kích chủ lực, còn phi công số 2 chỉ làm nhiệm vụ yểm trợ và quan sát. Đó là một vị trí an toàn, nhưng cũng là một điểm giới hạn khả năng tấn công.</p>
+      <p>Tuy nhiên trong không chiến, viên phi công ấy đã mạnh dạn cải tiến chiến thuật: linh hoạt chớp thời cơ để người bay ở vị trí số 2 cũng trực tiếp tham gia tiêu diệt địch. Nhờ óc quan sát nhạy bén và sự phối hợp ăn ý, hiệu suất chiến đấu của biên đội tăng vọt. Trận không chiến ngày 30/4/1967 là một minh chứng rực rỡ. Khi biên đội trưởng Nguyễn Ngọc Độ (bay số 1) vừa bắn rơi một chiếc F-105, Nguyễn Văn Cốc ở vị trí số 2 lập tức rút ngắn cự ly, chớp đúng khoảnh khắc địch chưa kịp phát hiện để phóng tên lửa, tiêu diệt gọn thêm một chiếc F-105 nữa.</p>
+      <p>Trong tổng số 9 máy bay Mỹ (gồm F-4, F-105 và cả máy bay không người lái) bị ông bắn hạ, có tới 6 chiếc phải ngã xuống khi ông đang đảm nhiệm vị trí yểm trợ số 2. Chính vai trò dù chỉ là phụ trợ, qua bàn tay và khối óc của ông, lại trở thành vị trí của một sát thủ thực thụ trên không.</p>
+      <p>Năm 1969, tại Đại hội Anh hùng - Chiến sĩ thi đua Quân chủng, chàng Đại úy 27 tuổi Nguyễn Văn Cốc, với thành tích lẫy lừng và 9 Huy hiệu Bác Hồ trên ngực áo, đã vinh dự được Chủ tịch Hồ Chí Minh gọi lên. Bác cầm tay ông giơ cao trước toàn thể hội trường, dõng dạc nói: "Năm mới, Bác chúc cho Quân chủng Phòng không - Không quân có nhiều Cốc hơn nữa." Lời chúc ấy không chỉ là sự ghi nhận cho một cá nhân xuất chúng, mà trở thành một mệnh lệnh truyền lửa, một nguồn cảm hứng vô tận cho mọi thế hệ phi công tiếp nối. "Cốc" từ đó đã là một biểu tượng của sự xuất sắc.</p>
+      <p>Sau chiến tranh, ông tiếp tục cống hiến, vươn lên cấp hàm Trung tướng, giữ chức Chánh Thanh tra Bộ Quốc phòng cho tới khi nghỉ hưu năm 2002. Nhưng số phận lại một lần nữa thử thách người anh hùng. Cuối năm 2004, một tai nạn ngã cầu thang khiến ông bị chấn thương sọ não, liệt toàn thân và phải gắn bó với giường bệnh, xe lăn.</p>
+      <p>Dẫu vậy, đôi cánh của "Chim cắt số 2" chưa bao giờ chịu khuất phục. Cạnh giường bệnh, có một chiếc dù xanh được buộc vào song cửa sổ. Mỗi ngày trôi qua, ông lại nhọc nhằn bám tay vào chiếc dù ấy để tập trị liệu, kiên trì giành giật sự sống và khả năng vận động.</p>
+      <p>Khép lại một đời binh nghiệp oanh liệt và một cuộc chiến dai dẳng với bệnh tật, Trung tướng Nguyễn Văn Cốc là hiện thân sống động cho một chân lý: lòng dũng cảm là phẩm chất của trái tim, nhưng chiến thắng vĩ đại thuộc về những bộ óc dám tư duy khác biệt.</p>
+      <p>Kỷ lục 9 máy bay và lời chúc "có nhiều Cốc hơn nữa" của Bác Hồ sẽ mãi là di sản quý báu, nhắc nhở thế hệ trẻ hôm nay rằng giới hạn thực sự duy nhất, chính là giới hạn chúng ta tự đặt ra cho bản thân mình.</p>
+      <p><small>Nguồn: Báo Dân Trí, Báo Công an Nhân dân, Báo Quân đội Nhân dân</small></p>
+    `,
+  },
+  {
+    title: "Ngọn lửa từ những người mở đường",
+    excerpt:
+      "Có một cái nắm tay diễn ra chớp nhoáng giữa làn khói bom trên sân bay Nội Bài vào một chiều đông tháng 12/1972, không ồn ào mà đủ sức vọng vang qua nửa thế kỷ...",
+    fullStory: `
+      <p>Có một cái nắm tay diễn ra chớp nhoáng giữa làn khói bom trên sân bay Nội Bài vào một chiều đông tháng 12/1972, không ồn ào mà đủ sức vọng vang qua nửa thế kỷ. Đó không đơn thuần là lời chúc mừng của một vị chỉ huy với cấp dưới. Đó là thời khắc thiêng liêng của sự chuyển giao thế hệ: ngọn lửa dũng cảm, bản lĩnh và niềm kiêu hãnh bầu trời đã được truyền trọn vẹn từ tay những người mở đường sang một thế hệ trẻ đầy khí phách.</p>
+      <p>Người truyền đi ngọn lửa ấy là Nguyễn Hồng Nhị, người nhận là Lê Văn Kiền. Và cái nôi sinh ra khoảnh khắc lịch sử ấy, chính là Trung đoàn Không quân tiêm kích 921, Đoàn Sao Đỏ anh hùng. Nhận quyết định thành lập ngày 3/2/1964, Trung đoàn Không quân tiêm kích 921 ra đời như một đơn vị mở đường, đặt những nền móng đầu tiên cho bầu trời Tổ quốc. Ngay từ những ngày đầu non trẻ ấy, một hệ tư tưởng thép đã được định hình và nung nấu: "Đã cất cánh là chiến thắng".</p>
+      <p>Tiêu biểu cho tinh thần ấy là phi công Nguyễn Hồng Nhị. Vào đầu năm 1966, khi chiếc MiG-21 còn là một "cỗ máy mới mẻ và xa lạ", ông đã lập tức biến nó thành nỗi ám ảnh của kẻ thù, xuất sắc bắn hạ chiếc máy bay không người lái hiện đại của Mỹ.</p>
+      <p>Chiến công ấy không chỉ là niềm tự hào, mà còn là bài học chiến đấu đầu tiên, là ngọn đuốc soi đường cho cả một thế hệ phi công trẻ phía sau. Những người như Nguyễn Hồng Nhị đã trở thành biểu tượng sống cho một chân lý: chiến thắng đến từ sự gan dạ, nhưng cũng đến từ một bộ óc dám nghĩ, dám làm.</p>
+      <p>Tám năm sau, những bài học vô giá ấy đã tìm thấy người kế thừa xứng đáng. Cuối năm 1972, khi cuộc chiến bước vào giai đoạn khốc liệt nhất, những phi công trẻ vừa trở về từ Liên Xô lập tức lao vào trận tuyến. Một trong số họ là Lê Văn Kiền - chàng trai mang trong mình khát vọng và di sản của chính Đoàn Sao Đỏ.</p>
+      <p>Chiều 23/12/1972, ở độ cao 7.500 mét, Lê Văn Kiền lọt vào giữa đội hình F-4 dày đặc. Đối mặt với tình thế hiểm nghèo, anh đã không nao núng. Vận dụng chính tinh thần "đã cất cánh là chiến thắng" của thế hệ đàn anh, chàng phi công trẻ bứt tốc, chớp thời cơ, tung đòn dứt điểm hạ gục một chiếc F-4 ở vận tốc xé gió lên đến 1.300 km/h.</p>
+      <p>Nhưng thử thách thực sự lại ập đến trên đường về. Đèn báo cạn xăng nhấp nháy đỏ rực, còn đường băng chính Nội Bài đã bị bom địch cày nát. Giữa khoảnh khắc sinh tử, dường như khí phách của những người đi trước đã nhập vào đôi tay người trẻ. Lê Văn Kiền ép cần lái, thực hiện một cú hạ cánh đưa chiếc MiG-21 an toàn xuống đoạn đường lăn phụ chỉ vỏn vẹn 14 mét.</p>
+      <p>Khi những bánh máy bay khựng lại trên mặt đường lấm lem khói bom, một bóng hình quen thuộc đã đứng chôn chân chờ đợi. Đó là Nguyễn Hồng Nhị, người mở đường năm xưa, lúc này đã là Trung đoàn trưởng.</p>
+      <p>Giữa tiếng bom rền xa, giữa mùi khói thuốc súng hãy còn nồng nặc, nụ cười hiếm hoi nở trên gương mặt dạn dày sương gió của vị chỉ huy. Ông bước vội tới, nắm chặt lấy tay viên phi công trẻ. Cái nắm tay ấy không chỉ là sự tán dương cho một chiến công xuất sắc. Nó là lời chào đón một người em, một người trò chính thức bước vào hàng ngũ những huyền thoại. "Rất tốt Kiền ạ!", giọng ông trầm ấm, "Chiến tranh còn ác liệt, còn nhiều thời cơ, phải cố gắng lên!".</p>
+      <p>Không cần những lời hoa mỹ, khoảnh khắc đó đã khép lại một vòng tròn hoàn hảo. Ngọn lửa dũng cảm, bản lĩnh thép và niềm kiêu hãnh của bầu trời đã được thế hệ Sao Đỏ đầu tiên đặt trọn vẹn vào tay những người trẻ, để khúc tráng ca giữ nước không bao giờ có điểm kết thúc.</p>
+      <p>Gần nửa thế kỷ đã trôi qua. Những chiếc MiG làm nên lịch sử giờ đã lùi về tuyến sau, nằm yên bình trong không gian tĩnh lặng của bảo tàng. Những cỗ máy có thể được thay thế bằng thế hệ chiến đấu cơ mới, hiện đại hơn. Nhưng di sản tinh thần của Đoàn Sao Đỏ, tinh thần "đã cất cánh là chiến thắng", vẫn đang được viết tiếp.</p>
+      <p>Ngọn lửa thiêng ấy vẫn rực cháy kiêu hãnh trong từng nhịp đập buồng lái hôm nay, nhắc nhở rằng sức mạnh lớn nhất của một thế hệ không nằm ở hệ thống vũ khí hiện đại, mà ở khả năng truyền trọn niềm tin cho những thế hệ sau.</p>
+      <p><small>Nguồn: Báo Phòng không Không quân, Báo Quân đội nhân dân, Tạp chí Văn hóa và Phát triển</small></p>
+    `,
+  },
+  {
+    title:
+      "Vạch nhiễu tìm thù - Lưỡi lửa xuyên bão điện tử, quật đổ pháo đài bay B-52",
+    excerpt:
+      "Giữa biển nhiễu điện tử dày đặc, những người lính radar vẫn tìm thấy B-52 bằng trí tuệ và bản lĩnh...",
+    fullStory: `
+      <p>Giữa biển nhiễu điện tử dày đặc, những người lính radar vẫn tìm thấy B-52 bằng trí tuệ và bản lĩnh.</p>
+      <p>Nhiều năm sau chiến tranh, khi nhắc đến chiến thắng "Hà Nội - Điện Biên Phủ trên không", không ít người vẫn truyền tai nhau câu chuyện về việc bộ đội ta đã "nối tầng" tên lửa SAM-2 để bắn hạ những chiếc B-52 bất khả xâm phạm. Đó là một giai thoại hấp dẫn, nhưng sự thật còn đáng kinh ngạc hơn thế.</p>
+      <p>Cuối năm 1972, khi phát động chiến dịch Linebacker II, quân đội Mỹ đặt trọn niềm tin vào sức mạnh của B-52. Những "pháo đài bay" khổng lồ này không chỉ mang theo lượng bom khủng khiếp mà còn được bảo vệ bởi mạng lưới gây nhiễu điện tử dày đặc. Kẻ địch cố tình biến bầu trời thành một "biển nhiễu", nơi việc phát hiện mục tiêu chẳng khác nào tìm một con thuyền nhỏ giữa cơn bão.</p>
+      <p>Nhưng bộ đội radar Việt Nam không chờ đến năm 1972 mới đối mặt với thử thách ấy. Ngay từ những năm chiến tranh phá hoại, các đơn vị kỹ thuật đã đưa khí tài vào tận chiến trường Trường Sơn để quan sát, nghiên cứu và ghi chép tỉ mỉ từng kiểu gây nhiễu của không quân Mỹ. Từ hàng nghìn giờ quan sát ấy, họ dần nhận ra rằng mỗi loại máy bay, mỗi phương thức tác chiến đều để lại những "dấu vân tay" riêng trên màn hiện sóng. Có loại nhiễu quét ngang như những đợt sóng biển. Có loại xuất hiện thành từng cụm sáng đậm. Có loại liên tục thay đổi cường độ theo đội hình bay. Những kinh nghiệm quý giá ấy được hệ thống hóa thành các tài liệu nghiệp vụ nổi tiếng thời bấy giờ.</p>
+      <p>Càng nghiên cứu sâu, bộ đội ta càng phát hiện một điểm yếu quan trọng trong hệ thống tác chiến điện tử của Mỹ. Để bảo vệ B-52, đối phương tập trung gây nhiễu mạnh vào các radar điều khiển tên lửa. Tuy nhiên, các radar điều khiển pháo phòng không lại không bị chế áp quyết liệt với cùng mức độ. Khoảng trống tưởng chừng nhỏ bé ấy nhanh chóng được các cán bộ kỹ thuật khai thác.</p>
+      <p>Nhiều đơn vị bắt đầu sử dụng radar K8-60 kết hợp với kính ngắm quang học TZK để hỗ trợ phát hiện mục tiêu trong môi trường nhiễu nặng. Những thiết bị vốn không được thiết kế cho nhiệm vụ săn B-52 nay lại trở thành nguồn thông tin quý giá giúp xác định hướng bay và vị trí mục tiêu.</p>
+      <p>Quan trọng hơn cả, từ thực tiễn chiến đấu, bộ đội tên lửa đã từng bước hoàn thiện phương pháp bắn ba điểm - một sáng tạo mang tính đột phá của nghệ thuật tác chiến phòng không Việt Nam. Thay vì phụ thuộc hoàn toàn vào việc bám sát mục tiêu trên màn hình radar như cách đánh thông thường, kíp chiến đấu chủ động dự đoán quỹ đạo bay, tính toán điểm gặp và dẫn đường cho tên lửa theo những thông số đã được hiệu chỉnh. Nói cách khác, khi đối phương cố che giấu mình trong biển nhiễu, bộ đội ta học cách "nhìn" mục tiêu bằng kinh nghiệm, quy luật và tư duy chiến thuật.</p>
+      <p>B-52 sở hữu công nghệ hiện đại. Nhưng chính đặc điểm hoạt động của chúng lại vô tình tạo ra sơ hở. Để bảo đảm hiệu quả ném bom, các tốp máy bay thường giữ đội hình tương đối ổn định, bay theo hành lang đã tính toán trước và ít thay đổi độ cao trong quá trình tiếp cận mục tiêu. Những quy luật ấy bị các đơn vị phòng không Việt Nam kiên trì ghi nhận qua từng trận đánh. Mỗi lần chạm trán là một lần bổ sung dữ liệu. Mỗi lần phóng tên lửa là một lần hoàn thiện cách đánh.</p>
+      <p>Khi chiến dịch Linebacker II bước vào giai đoạn ác liệt nhất, những kinh nghiệm được tích lũy suốt nhiều năm ấy đã phát huy tác dụng. Giữa màn đêm Hà Nội, giữa biển nhiễu điện tử tưởng như không thể xuyên thủng, các trắc thủ radar vẫn phát hiện được mục tiêu. Các kíp tên lửa vẫn xác định được thời cơ khai hỏa. Và những quả đạn SAM-2 vẫn lao lên bầu trời, tìm đến các "pháo đài bay" mà đối phương từng tin là bất khả xâm phạm.</p>
+      <p>Chiến thắng ấy cho thấy một sự thật giản dị nhưng sâu sắc: trong chiến tranh hiện đại, công nghệ là yếu tố quan trọng, nhưng con người mới là nhân tố quyết định. Bởi cuối cùng, điều đánh bại những lớp nhiễu điện tử dày đặc không phải là một loại vũ khí thần kỳ, mà là trí tuệ, sự sáng tạo và ý chí của những người lính đã kiên trì "vạch nhiễu tìm thù" suốt nhiều năm trên bầu trời Tổ quốc.</p>
+      <p><small>Nguồn: Báo Quân đội nhân dân, Báo Nhân dân, TTXVN</small></p>
+    `,
+  },
+  {
+    title: 'Độc chiêu phục kích F-111 - Khi "Thần sấm bóng đêm" sa lưới',
+    excerpt:
+      "Bay thấp để tránh radar, F-111 không ngờ lại gặp một đối thủ mà họ không tính tới...",
+    fullStory: `
+      <p>Bay thấp để tránh radar, F-111 không ngờ lại gặp một đối thủ mà họ không tính tới.</p>
+      <p>Trong ký ức của nhiều người về cuộc chiến tranh trên bầu trời miền Bắc, B-52 thường là cái tên được nhắc đến nhiều nhất. Thế nhưng, với không ít chiến sĩ phòng không thời bấy giờ, một đối thủ khác còn khiến họ đau đầu hơn: F-111 Aardvark.</p>
+      <p>Nếu B-52 xuất hiện thành từng tốp lớn, phát ra tín hiệu và có quy luật hoạt động tương đối ổn định, thì F-111 lại hoàn toàn ngược lại. Chúng xuất hiện bất ngờ, bay đơn lẻ, lướt sát mặt đất rồi biến mất trong đêm tối trước khi các đơn vị phòng không kịp phản ứng. Người Mỹ gọi đây là loại máy bay đột kích chiến thuật hiện đại nhất của họ. Còn nhiều chiến sĩ Việt Nam khi ấy gọi nó bằng một cái tên khác: "kẻ săn mồi trong bóng đêm".</p>
+      <p>F-111 sở hữu đôi cánh cụp cánh xòe độc đáo, hệ thống dẫn đường tiên tiến và khả năng bay bám địa hình ở độ cao cực thấp, thường chỉ cách mặt đất vài chục đến vài trăm mét. Chúng luồn qua các thung lũng, men theo sông ngòi, lợi dụng địa hình để che chắn tín hiệu radar. Trên màn hiện sóng, F-111 gần như hòa lẫn với các tín hiệu phản xạ từ núi đồi, nhà cửa và cây cối.</p>
+      <p>Đó chính là điểm khiến loại máy bay này trở thành một thách thức đặc biệt. Những phương thức đánh chặn vốn hiệu quả với máy bay bay cao gần như không còn tác dụng. Các đơn vị radar thường chỉ phát hiện mục tiêu trong thời gian rất ngắn. Khi tín hiệu vừa xuất hiện thì máy bay đã lao qua khu vực phòng thủ.</p>
+      <p>Nhiều người tin rằng F-111 gần như không thể bị tiêu diệt. Nhưng chiến tranh chưa bao giờ là cuộc đối đầu đơn thuần giữa công nghệ và công nghệ. Sau nhiều lần quan sát, các đơn vị phòng không Việt Nam dần nhận ra rằng dù bay thấp đến đâu, F-111 vẫn phải tuân theo những quy luật nhất định. Địa hình có thể giúp chúng che giấu hành tung, nhưng cũng đồng thời bó hẹp các hướng tiếp cận.</p>
+      <p>Muốn tránh radar, phi công Mỹ thường lựa chọn những hành lang bay quen thuộc: các thung lũng rộng, các tuyến sông lớn hoặc những khoảng địa hình tương đối bằng phẳng. Theo thời gian, những con đường tưởng như vô hình ấy bắt đầu hiện ra trong mắt các nhà nghiên cứu tác chiến.</p>
+      <p>Một cuộc săn lùng âm thầm được triển khai. Không chỉ các đơn vị radar, tên lửa hay pháo phòng không tham gia vào quá trình này. Mạng lưới quan sát trải dài từ thành phố tới nông thôn, từ lực lượng chính quy tới dân quân tự vệ cũng được huy động.</p>
+      <p>Mỗi ánh đèn lạ trên bầu trời. Mỗi tiếng động cơ vang lên giữa đêm. Mỗi lần máy bay xuất hiện rồi biến mất. Tất cả đều được ghi chép, đối chiếu và tổng hợp. Từ những dữ liệu tích lũy ấy, các đơn vị phòng không bắt đầu xây dựng những khu vực phục kích được gọi là "túi lửa". Thay vì dàn lực lượng đều khắp, hỏa lực được bố trí tập trung tại các hướng bay mà F-111 nhiều khả năng sẽ đi qua.</p>
+      <p>Đó là một sự thay đổi quan trọng trong tư duy tác chiến. Không chờ mục tiêu xuất hiện rồi mới phản ứng mà chủ động đón lõng đối phương ngay trên tuyến đường chúng buộc phải đi qua. Những trận địa pháo được ngụy trang kỹ lưỡng. Các tổ quan sát bí mật được triển khai ở những vị trí trọng yếu. Nhiều đơn vị phải kiên nhẫn chờ đợi hàng tuần, thậm chí hàng tháng chỉ để tìm kiếm một cơ hội duy nhất.</p>
+      <p>Sự kiên nhẫn ấy cuối cùng cũng được đền đáp. Đêm 22 tháng 12 năm 1972, trong lúc chiến dịch Linebacker II đang diễn ra ác liệt, một chiếc F-111 lao vào khu vực phòng thủ của miền Bắc theo cách mà phi công Mỹ đã thực hiện hàng trăm lần trước đó. Có lẽ họ tin rằng màn đêm vẫn đang bảo vệ mình. Có lẽ họ tin rằng độ cao cực thấp vẫn đủ để vượt qua mọi hệ thống phòng thủ.</p>
+      <p>Nhưng lần này, bên dưới bóng tối ấy, một mạng lưới quan sát và phục kích đã được chuẩn bị từ trước. Khi chiếc máy bay tiến vào khu vực hỏa lực, các đơn vị phòng không đồng loạt hành động. Chỉ trong khoảnh khắc, "thần sấm bóng đêm" bị đánh trúng. Ngọn lửa bùng lên giữa bầu trời đêm. Mảnh vỡ rơi xuống mặt đất. Một trong những biểu tượng công nghệ hiện đại nhất của không quân Mỹ đã bị khuất phục.</p>
+      <p>Chiến công ấy không phải kết quả của may mắn. Đó là thành quả của hàng nghìn giờ quan sát, nghiên cứu và kiên trì tìm quy luật hoạt động của đối phương. Quan trọng hơn, nó cho thấy sức mạnh đặc biệt của thế trận phòng không nhân dân Việt Nam. Trong cuộc đối đầu ấy, người Mỹ sở hữu những chiếc máy bay hiện đại nhất. Nhưng Việt Nam lại có thứ mà công nghệ không thể thay thế: một mạng lưới chiến đấu trải rộng khắp đất nước, nơi từ chiến sĩ radar, pháo thủ phòng không đến dân quân địa phương đều trở thành những mắt xích trong cùng một hệ thống.</p>
+      <p>Nửa thế kỷ đã trôi qua, F-111 vẫn được nhắc đến như một trong những loại máy bay đột kích tiên tiến nhất của thế kỷ XX. Nhưng trên bầu trời Việt Nam năm 1972, lịch sử đã chứng minh rằng không có loại vũ khí nào là bất khả chiến bại. Bởi phía sau mỗi trận thắng không chỉ là đạn pháo hay tên lửa. Đó còn là trí tuệ, sự kiên trì và nghệ thuật biến điểm mạnh của đối phương thành chiếc bẫy dành cho chính họ.</p>
+      <p><small>Nguồn: Báo Dân Trí, Báo Nhân dân, Báo Quân đội nhân dân</small></p>
+    `,
+  },
+  {
+    title: "Song kiếm hợp bích - Khi MiG-21 biến bầu trời thành bẫy săn B-52",
+    excerpt:
+      "Sau mỗi chiến công MiG-21 là cả một mạng lưới dẫn đường âm thầm dưới mặt đất...",
+    fullStory: `
+      <p>Sau mỗi chiến công MiG-21 là cả một mạng lưới dẫn đường âm thầm dưới mặt đất.</p>
+      <p>Trong ký ức của nhiều người, chiến thắng "Hà Nội - Điện Biên Phủ trên không" thường gắn với những quả tên lửa SAM-2 vút lên giữa màn đêm, xé toang đội hình B-52. Nhưng ít ai biết rằng, trong những ngày tháng ác liệt ấy, còn có một lực lượng khác đang lặng lẽ tham gia cuộc săn tìm những "pháo đài bay". Đó là các phi công MiG-21.</p>
+      <p>Không ít chuyên gia quân sự nước ngoài từng cho rằng việc dùng tiêm kích đánh chặn B-52 là nhiệm vụ gần như bất khả thi. Một bên là chiếc máy bay ném bom chiến lược khổng lồ được bảo vệ bởi hàng chục máy bay hộ tống, hệ thống gây nhiễu điện tử hiện đại và mạng lưới cảnh báo dày đặc. Một bên là những chiếc MiG-21 nhỏ bé với thời gian chiến đấu ngắn và lượng nhiên liệu hạn chế. Trên lý thuyết, cán cân dường như hoàn toàn nghiêng về phía Mỹ.</p>
+      <p>Nhưng từ rất sớm, Bộ đội Không quân Việt Nam đã hiểu rằng, ta không cần đối đầu bằng sức mạnh mà có thể đối đầu bằng sự bất ngờ. Không đánh theo ý muốn của đối phương mà buộc đối phương phải chiến đấu theo cách mình lựa chọn. Đó chính là tư duy đã làm nên những trận đánh lịch sử trên bầu trời miền Bắc.</p>
+      <p>Không quân Mỹ có ưu thế về số lượng, về công nghệ, về radar. Nhưng chính sự phụ thuộc vào những hệ thống hiện đại ấy đôi khi lại tạo ra những khoảng trống mà đối phương không ngờ tới. MiG-21 được lựa chọn để khai thác những khoảng trống đó. Nhỏ gọn. Cơ động. Tăng tốc nhanh. Xuất hiện bất ngờ rồi rút lui cũng bất ngờ. Đó là những đặc điểm rất phù hợp với chiến thuật phục kích trên không.</p>
+      <p>Tuy nhiên, một chiếc MiG-21 đơn lẻ không thể tự mình tìm kiếm mục tiêu giữa bầu trời rộng lớn. Đằng sau mỗi chuyến xuất kích là cả một hệ thống hỗ trợ khổng lồ hoạt động liên tục dưới mặt đất. Các đài radar cảnh giới theo dõi từng biến động trên không. Các sở chỉ huy phân tích hướng bay của đối phương. Các kíp dẫn đường tính toán thời điểm cất cánh, hướng tiếp cận và vị trí đánh chặn. Phía sau những phi công trong buồng lái là hàng trăm con người đang cùng tham gia vào một nhiệm vụ chung.</p>
+      <p>Chính sự phối hợp ấy đã tạo nên điều mà nhiều cựu phi công gọi là "đôi cánh thứ hai" của MiG-21. Khi chiến dịch Linebacker II bắt đầu cuối tháng 12 năm 1972, thách thức còn lớn hơn nhiều. B-52 không xuất hiện đơn lẻ. Chúng tiến vào theo từng đội hình lớn. Xung quanh là các máy bay hộ tống. Phía trước là các tốp gây nhiễu điện tử. Toàn bộ bầu trời như bị phủ kín bởi những lớp bảo vệ nhiều tầng.</p>
+      <p>Nhưng trong mắt những người làm nhiệm vụ dẫn đường, càng nghiên cứu kỹ đối phương, họ càng nhận ra một thực tế quan trọng. B-52 không thể tùy ý cơ động như tiêm kích. Để bảo đảm hiệu quả ném bom, chúng phải giữ đội hình tương đối ổn định. Phải tuân thủ hành lang bay đã tính toán trước. Phải duy trì những quy luật nhất định. Chính những quy luật ấy trở thành cơ sở để xây dựng phương án đánh chặn.</p>
+      <p>Thay vì tìm kiếm B-52 trên toàn bộ bầu trời, các đơn vị dẫn đường tập trung dự đoán nơi chúng sẽ xuất hiện. Các phi công MiG-21 được đưa lên đúng thời điểm, đúng độ cao, đúng hướng tiếp cận. Mọi sai số đều phải được tính toán đến mức tối thiểu. Nhiều trận đánh chỉ cho phép phi công có vài phút, thậm chí vài chục giây để phát hiện mục tiêu, khóa bám và phóng tên lửa.</p>
+      <p>Trong những điều kiện ấy, những chiến công của Không quân Việt Nam càng trở nên đặc biệt. Các phi công không chỉ phải vượt qua hệ thống hộ tống dày đặc của đối phương. Họ còn phải đối mặt với môi trường gây nhiễu điện tử cực mạnh. Nhiều khi, mục tiêu chỉ xuất hiện trong khoảnh khắc ngắn ngủi trước khi biến mất vào biển nhiễu. Nhưng bằng kinh nghiệm, bản lĩnh và sự dẫn dắt chính xác từ mặt đất, các phi công vẫn tiếp cận được mục tiêu. Và vẫn tung ra những đòn đánh khiến đối phương bất ngờ.</p>
+      <p>Nếu MiG-21 là lưỡi kiếm sắc bén trên bầu trời, thì hệ thống radar và dẫn đường mặt đất chính là cánh tay đã đưa lưỡi kiếm ấy đến đúng mục tiêu. Đó thực sự là một "song kiếm hợp bích". Và cũng chính từ sự phối hợp ấy, những chiếc MiG-21 nhỏ bé đã viết nên một trong những chương đặc sắc nhất của lịch sử không chiến Việt Nam. Một lần nữa chứng minh rằng trong chiến tranh hiện đại, ưu thế kỹ thuật không phải lúc nào cũng quyết định kết quả cuối cùng.</p>
+      <p><small>Nguồn: Báo VnExpress, Báo Quân đội nhân dân, Báo Nhân dân</small></p>
+    `,
+  },
+];
+
+const heroes = [
+  { icon: "🪖", name: "Nguyễn Văn Bảy", desc: '"Ông Bảy lúa" · 7 máy bay' },
+  { icon: "🪖", name: "Vũ Xuân Thiều", desc: '"Quả tên lửa thứ ba"' },
+  { icon: "🪖", name: "Nguyễn Văn Cốc", desc: '"Chim cắt số 2" · 9 máy bay' },
+  { icon: "🪖", name: "Tô Vĩnh Diện", desc: "Anh hùng pháo cao xạ" },
+];
 </script>
 
 <style scoped>
-/* Same as before – carousel arrows, transitions, etc. */
+/* All existing styles remain unchanged */
 .explore-layout {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -99,7 +334,7 @@ function prev() {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background: var(--olive-dark);
+  background: var(--primary-dark);
   color: var(--white);
   border: none;
   width: 40px;
@@ -116,7 +351,7 @@ function prev() {
 }
 .arrow-btn:hover:not(:disabled) {
   background: var(--gold);
-  color: var(--olive-dark);
+  color: var(--primary-dark);
 }
 .arrow-btn:disabled {
   opacity: 0.3;
@@ -154,5 +389,126 @@ function prev() {
   transform: translateX(-30px);
 }
 
-/* The rest of the story cards and profiles stay the same */
+.audio-float {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 40px;
+  padding: 6px 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.audio-float audio {
+  width: 120px;
+  height: 32px;
+  outline: none;
+}
+.audio-float audio::-webkit-media-controls-panel {
+  background: transparent;
+}
+@media (max-width: 600px) {
+  .audio-float {
+    top: 70px;
+    right: 10px;
+    padding: 4px 8px;
+  }
+  .audio-float audio {
+    width: 100px;
+    height: 28px;
+  }
+}
+
+.exhibit-counter {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-light);
+  margin: 8px 0 20px;
+  font-weight: 500;
+}
+
+.story-cards {
+  margin-top: 40px;
+}
+.story-cards h3 {
+  color: var(--primary-dark);
+  margin-bottom: 16px;
+}
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+.story-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--gold);
+  display: flex;
+  flex-direction: column;
+}
+.story-card h4 {
+  color: var(--primary-dark);
+  font-size: 16px;
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.story-card p {
+  font-size: 14px;
+  color: var(--text-light);
+  flex-grow: 1;
+  line-height: 1.6;
+}
+.story-link {
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 12px;
+  align-self: flex-start;
+  cursor: pointer;
+}
+.story-link:hover {
+  text-decoration: underline;
+}
+
+.hero-profiles {
+  margin-top: 40px;
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.hero-profiles h3 {
+  color: var(--primary-dark);
+  margin-bottom: 12px;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.profile {
+  text-align: center;
+  padding: 12px;
+  background: var(--cream);
+  border-radius: var(--radius);
+}
+.profile div:first-child {
+  font-size: 40px;
+  margin-bottom: 4px;
+}
+.profile div:nth-child(2) {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
+}
+.profile div:nth-child(3) {
+  font-size: 13px;
+  color: var(--text-light);
+}
 </style>
