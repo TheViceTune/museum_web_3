@@ -25,10 +25,14 @@
           {{ feedbackMessage }}
         </div>
         <div class="modal-actions" v-if="answered">
-          <button class="btn-primary" @click="continueGame">➡️ Tiếp tục</button>
-          <button class="btn-secondary" @click="learnMore">
+          <button
+            v-if="learnMoreLink"
+            class="btn-secondary"
+            @click="openLearnMore"
+          >
             📖 Tìm hiểu thêm
           </button>
+          <button class="btn-primary" @click="continueGame">➡️ Tiếp tục</button>
         </div>
       </div>
     </div>
@@ -46,9 +50,10 @@ const props = defineProps({
   correctIndex: Number,
   explanation: String,
   isFinal: Boolean,
+  learnMoreLink: String,
 });
 
-const emit = defineEmits(["update:visible", "answer", "close"]);
+const emit = defineEmits(["update:visible", "answer", "close", "continue"]);
 
 const selectedIdx = ref(null);
 const answered = ref(false);
@@ -74,22 +79,30 @@ function selectOption(idx) {
   const correct = idx === props.correctIndex;
   if (correct) {
     feedbackClass.value = "success";
-    feedbackMessage.value = "🎉 Chúc mừng bạn đã trả lời chính xác!";
+    feedbackMessage.value = "🎉 Chính xác!";
   } else {
     feedbackClass.value = "error";
     const correctLetter = String.fromCharCode(65 + props.correctIndex);
-    feedbackMessage.value = `❌ Oops! Câu trả lời chưa chính xác. Đáp án đúng là: ${correctLetter}. ${props.options[props.correctIndex]}`;
+    feedbackMessage.value = `❌ Chưa chính xác! Đáp án đúng là: ${correctLetter}. ${props.options[props.correctIndex]}`;
   }
   emit("answer", idx);
 }
 
 function continueGame() {
+  emit("continue");
   emit("update:visible", false);
   emit("close");
 }
 
-function learnMore() {
-  alert("📚 Tìm hiểu thêm: " + props.explanation);
+function openLearnMore() {
+  if (props.learnMoreLink) {
+    // Use router if it's an internal link, else open in new tab
+    if (props.learnMoreLink.startsWith("#")) {
+      window.location.hash = props.learnMoreLink.slice(1);
+    } else {
+      window.open(props.learnMoreLink, "_blank");
+    }
+  }
 }
 
 function close() {
@@ -99,15 +112,17 @@ function close() {
 </script>
 
 <style scoped>
+/* Same as before, with minor additions */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
+  backdrop-filter: blur(4px);
 }
 .question-modal {
   background: var(--white);
@@ -151,7 +166,7 @@ function close() {
   font-size: 14px;
   cursor: pointer;
   transition: var(--transition);
-  font-family: var(--font);
+  font-family: var(--font-body);
 }
 .options button:hover:not(:disabled) {
   border-color: var(--olive);
@@ -189,7 +204,7 @@ function close() {
   margin-top: 12px;
 }
 .btn-primary {
-  background: var(--olive-dark);
+  background: var(--primary-dark);
   color: var(--white);
   border: none;
   padding: 10px 24px;
@@ -197,11 +212,11 @@ function close() {
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
-  font-family: var(--font);
+  font-family: var(--font-body);
   font-size: 14px;
 }
 .btn-primary:hover {
-  background: var(--olive);
+  background: var(--primary);
 }
 .btn-secondary {
   background: var(--cream);
@@ -212,7 +227,7 @@ function close() {
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition);
-  font-family: var(--font);
+  font-family: var(--font-body);
   font-size: 14px;
 }
 .btn-secondary:hover {
